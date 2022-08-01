@@ -1,11 +1,43 @@
-# -*- coding: utf-8 -*-
-# @Time : 2022/7/29 15:37
-# @Author :  Hcyand
-# @FileName: model.py
-
+# -*- coding: utf-8 -*-            
+# @Time : 2022/8/1 16:11
+# @Author : Hcyand
+# @FileName: factorization.py
 import tensorflow as tf
-from tensorflow.python.keras.layers import Input, Layer
-from tensorflow.python.keras.regularizers import l2
+import keras.backend as K
+from keras.regularizers import l2
+from tensorflow.python.keras.layers import Layer
+
+
+class FM_layer(Layer):
+    def __init__(self, k, w_reg, v_reg):
+        super(FM_layer, self).__init__()
+        self.k = k
+        self.w_reg = w_reg
+        self.v_reg = v_reg
+
+    def build(self, input_shape):
+        self.w0 = self.add_weight(name='w0', shape=(1,),
+                                  initializer=tf.zeros_initializer(),
+                                  trainable=True)
+        self.w = self.add_weight(name='w', shape=(input_shape[-1], 1),
+                                 initializer=tf.random_normal_initializer(),
+                                 trainable=True,
+                                 regularizer=l2(self.w_reg))
+        self.v = self.add_weight(name='v', shape=(input_shape[-1], self.k),
+                                 initializer=tf.random_normal_initializer(),
+                                 trainable=True,
+                                 regularizer=l2(self.v_reg))
+
+    def call(self, inputs, **kwargs):
+        if K.ndim(inputs) != 2:
+            raise ValueError('Unexpected inputs dimensions %d, except to be 2 dimensions' % (K.ndim(inputs)))
+
+        linear_part = self.w0 + tf.matmul(inputs, self.w)
+        inter_part1 = tf.pow(tf.matmul(inputs, self.v), 2)
+        inter_part2 = tf.matmul(tf.pow(inputs, 2), tf.pow(self.v, 2))
+        inter_part = 0.5 * tf.reduce_sum(inter_part1 - inter_part2, axis=-1, keepdims=True)
+
+        return linear_part + inter_part
 
 
 class FFM_layer(Layer):
