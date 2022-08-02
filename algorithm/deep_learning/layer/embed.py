@@ -3,16 +3,16 @@
 # @Author : Hcyand
 # @FileName: embed.py
 import tensorflow as tf
-from keras.layers import Layer, Embedding, Dense, Attention
+from keras.layers import Layer, Embedding, Dense
 from keras import backend
 
 
 class EmbedLayer(Layer):
     def __init__(self, k, sparse_feature_columns):
         super(EmbedLayer, self).__init__()
-        self.emb_layers = [Embedding(feat['feat_one_hot_dim'], k) for feat in sparse_feature_columns]
+        self.emb_layers = [Embedding(feat['feat_onehot_dim'], k) for feat in sparse_feature_columns]
 
-    def call(self, inputs, *args, **kwargs):
+    def call(self, inputs, **kwargs):
         if backend.ndim(inputs) != 2:
             raise ValueError('The dim of inputs should be 2, not %d' % (backend.ndim(inputs)))
 
@@ -32,7 +32,7 @@ class ResLayer(Layer):
     def build(self, input_shape):
         self.output_layer = Dense(input_shape[-1], activation=None)
 
-    def call(self, inputs, *args, **kwargs):
+    def call(self, inputs, **kwargs):
         if backend.ndim(inputs) != 2:
             raise ValueError('The dim of inputs shoulf be 2, not %d' % (backend.ndim(inputs)))
 

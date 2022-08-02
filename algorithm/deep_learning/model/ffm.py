@@ -3,7 +3,7 @@
 # @Author : Hcyand
 # @FileName: ffm.py
 from layer.factorization import FFM_layer
-from utils.criteo_dataset import create_criteo_dataset, ffm_feature_columns
+from utils.criteo_dataset import create_criteo_dataset, features_dict
 
 import tensorflow as tf
 from tensorflow.python.keras import Model, losses
@@ -30,7 +30,7 @@ if __name__ == '__main__':
     k = 8
 
     (X_train, y_train), (X_test, y_test) = create_criteo_dataset('ffm', file, test_size=test_size)
-    feature_dict = ffm_feature_columns(file)
+    feature_dict = features_dict(file)
 
     model = FFM(feature_dict, k=k)
     optimizer = optimizers.SGD(0.01)
