@@ -33,10 +33,16 @@ def create_criteo_dataset(t, file_path, test_size=0.3):
     data[dense_features] = MinMaxScaler().fit_transform(data[dense_features])
     if t == 'fm':
         data = pd.get_dummies(data)
-    elif t in ['ffm', 'DeepCrossing']:
+    elif t in ['ffm', 'DeepCrossing', 'pnn']:
         # LabelEncoding编码
         for col in sparse_features:
             data[col] = LabelEncoder().fit_transform(data[col]).astype(int)
+    elif t == 'WideDeep':
+        onehot_data = pd.get_dummies(data)
+        onehot_data = onehot_data.drop(['label'], axis=1)
+        for col in sparse_features:
+            data[col] = LabelEncoder().fit_transform(data[col]).astype(int)
+        data = pd.concat([data, onehot_data], axis=1)
 
     # 数据集划分
     X = data.drop(['label'], axis=1).values
@@ -50,5 +56,5 @@ def features_dict(file_path, embed_dim=8):
     data = pd.read_csv(file_path, sep='\t', header=None, names=['label'] + dense_features + sparse_features)
 
     feature_columns = [[denseFeature(feat) for feat in dense_features]] + \
-                      [[sparseFeature(feat, data[feat].nunique()+1, embed_dim) for feat in sparse_features]]
+                      [[sparseFeature(feat, data[feat].nunique() + 1, embed_dim) for feat in sparse_features]]
     return feature_columns

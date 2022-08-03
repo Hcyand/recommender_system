@@ -67,7 +67,7 @@ if __name__ == '__main__':
     mode = 'both'
     use_fgcnn = True
 
-    (X_train, y_train), (X_test, y_test) = create_criteo_dataset('DeepCrossing', file)
+    (X_train, y_train), (X_test, y_test) = create_criteo_dataset('pnn', file)
     feature_dict = features_dict(file)
 
     train_dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train))
