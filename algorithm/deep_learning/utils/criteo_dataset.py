@@ -33,7 +33,7 @@ def create_criteo_dataset(t, file_path, test_size=0.3):
     data[dense_features] = MinMaxScaler().fit_transform(data[dense_features])
     if t == 'fm':
         data = pd.get_dummies(data)
-    elif t in ['ffm', 'DeepCrossing', 'pnn']:
+    elif t in ['ffm', 'DeepCrossing', 'pnn', 'dcn']:
         # LabelEncoding编码
         for col in sparse_features:
             data[col] = LabelEncoder().fit_transform(data[col]).astype(int)
