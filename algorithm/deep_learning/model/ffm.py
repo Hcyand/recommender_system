@@ -4,6 +4,7 @@
 # @FileName: ffm.py
 from layer.interaction import FFMLayer
 from utils.criteo_dataset import create_criteo_dataset, features_dict
+from utils.compile_fit import compile_fit
 
 import tensorflow as tf
 from keras import Model, losses
@@ -33,12 +34,7 @@ if __name__ == '__main__':
     feature_dict = features_dict(file)
 
     model = FFM(feature_dict, k=k)
-    optimizer = optimizers.SGD(0.01)
-
-    train_dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train))
-    train_dataset = train_dataset.batch(32).prefetch(tf.data.experimental.AUTOTUNE)
-    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
-    model.fit(train_dataset, epochs=10)
+    model = compile_fit(model, X_train, y_train)
 
     pre = model(X_test)
     pre = [1 if x > 0.5 else 0 for x in pre]

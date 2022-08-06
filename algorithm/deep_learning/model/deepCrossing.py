@@ -5,6 +5,7 @@
 from layer.interaction import ResLayer
 from layer.inputs import EmbedLayer
 from utils.criteo_dataset import create_criteo_dataset, features_dict
+from utils.compile_fit import compile_fit
 import tensorflow as tf
 from keras.models import Model
 from keras.layers import Dense
@@ -40,12 +41,7 @@ if __name__ == '__main__':
     feature_dict = features_dict(file)
 
     model = DeepCrossing(feature_dict, k, hidden_units, res_layer_num)
-    optimizer = optimizers.SGD(0.01)
-
-    train_dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train))
-    train_dataset = train_dataset.batch(32).prefetch(tf.data.experimental.AUTOTUNE)
-    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
-    model.fit(train_dataset, epochs=10)
+    model = compile_fit(model, X_train, y_train)
 
     # 评估
     pre = model(X_test)

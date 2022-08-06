@@ -4,6 +4,7 @@
 # @FileName: fm.py
 from layer.interaction import FMLayer
 from utils.criteo_dataset import create_criteo_dataset
+from utils.compile_fit import compile_fit
 
 import tensorflow as tf
 from keras import Model, losses, optimizers
@@ -29,12 +30,7 @@ if __name__ == '__main__':
     (X_train, y_train), (X_test, y_test) = create_criteo_dataset('fm', file, test_size=test_size)
 
     model = FM(k)
-    optimizer = optimizers.SGD(0.01)
-
-    train_dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train))
-    train_dataset = train_dataset.batch(32).prefetch(tf.data.experimental.AUTOTUNE)
-    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
-    model.fit(train_dataset, epochs=10)
+    model = compile_fit(model, X_train, y_train)
 
     pre = model(X_test)
     pre = [1 if x > 0.5 else 0 for x in pre]
