@@ -2,7 +2,7 @@
 # @Time : 2022/8/3 15:20
 # @Author : Hcyand
 # @FileName: pnn.py
-from layer.pnn import DNN_layer, InnerProductLayer, OuterProductLayer, FGCNN_layer
+from layer.interaction import DNNLayer, InnerProductLayer, OuterProductLayer, FGCNNLayer
 from utils.criteo_dataset import create_criteo_dataset, features_dict
 import tensorflow as tf
 from keras.models import Model
@@ -17,7 +17,7 @@ class PNN(Model):
         super(PNN, self).__init__()
         self.mode = mode
         self.dense_feature_columns, self.sparse_feature_columns = feature_columns
-        self.dnn_layer = DNN_layer(hidden_units, output_dim, activation, dropout)
+        self.dnn_layer = DNNLayer(hidden_units, output_dim, activation, dropout)
         self.inner_product_layer = InnerProductLayer()
         self.outer_product_layer = OuterProductLayer()
         self.embed_layers = {
@@ -26,7 +26,7 @@ class PNN(Model):
         }
         self.use_fgcnn = use_fgcnn
         if use_fgcnn:
-            self.fgcnn_layer = FGCNN_layer()
+            self.fgcnn_layer = FGCNNLayer()
 
     def call(self, inputs, training=None, mask=None):
         dense_inputs, sparse_inputs = inputs[:, :13], inputs[:, 13:]

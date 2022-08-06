@@ -2,7 +2,8 @@
 # @Time : 2022/8/3 21:00
 # @Author : Hcyand
 # @FileName: wideDeep.py
-from layer.wide_deep import WideLayer, DeepLayer
+from layer.interaction import WideLayer, DNNLayer
+from layer.inputs import EmbedLayer
 from utils.criteo_dataset import create_criteo_dataset, features_dict
 import tensorflow as tf
 from keras import Model
@@ -15,10 +16,11 @@ class WideDeep(Model):
     def __init__(self, feature_columns, hidden_units, output_dim, activation):
         super(WideDeep, self).__init__()
         self.dense_feature_columns, self.sparse_feature_columns = feature_columns
-        self.embedding_layer = {'embed_layer' + str(i): Embedding(feat['feat_onehot_dim'], feat['embed_dim'])
-                                for i, feat in enumerate(self.sparse_feature_columns)}
+        # self.embedding_layer = {'embed_layer' + str(i): Embedding(feat['feat_onehot_dim'], feat['embed_dim'])
+        #                         for i, feat in enumerate(self.sparse_feature_columns)}
+        self.embed_layer = EmbedLayer(self.sparse_feature_columns)
         self.wide = WideLayer()
-        self.deep = DeepLayer(hidden_units, output_dim, activation)
+        self.deep = DNNLayer(hidden_units, output_dim, activation)
 
     def call(self, inputs, training=None, mask=None):
         dense_inputs, sparse_inputs, onehot_inputs = inputs[:, :13], inputs[:, 13:39], inputs[:, 39:]
@@ -28,8 +30,9 @@ class WideDeep(Model):
         wide_output = self.wide(wide_input)
 
         # Deep
-        sparse_embed = tf.concat([self.embedding_layer['embed_layer' + str(i)](sparse_inputs[:, i])
-                                  for i in range(sparse_inputs.shape[-1])], axis=-1)
+        # sparse_embed = tf.concat([self.embedding_layer['embed_layer' + str(i)](sparse_inputs[:, i])
+        #                           for i in range(sparse_inputs.shape[-1])], axis=-1)
+        sparse_embed = self.embed_layer(sparse_inputs)
         deep_output = self.deep(sparse_embed)
 
         output = tf.nn.sigmoid(0.5 * (wide_output + deep_output))
@@ -48,13 +51,10 @@ if __name__ == '__main__':
     model = WideDeep(feature_dict, hidden_units, output_dim, activation)
     optimizer = optimizers.SGD(0.01)
 
-    for i in range(10):
-        with tf.GradientTape() as tape:
-            y_pre = model(X_train)
-            loss = tf.reduce_mean(losses.binary_crossentropy(y_train, y_pre))
-            print(loss.numpy())
-        grad = tape.gradient(loss, model.variables)
-        optimizer.apply_gradients(grads_and_vars=zip(grad, model.variables))
+    train_dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train))
+    train_dataset = train_dataset.batch(32).prefetch(tf.data.experimental.AUTOTUNE)
+    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
+    model.fit(train_dataset, epochs=10)
 
     pre = model(X_test)
     pre = [1 if x > 0.5 else 0 for x in pre]
