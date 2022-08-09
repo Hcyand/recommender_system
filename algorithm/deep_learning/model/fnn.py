@@ -17,6 +17,7 @@ class FM(Model):
 
     def call(self, inputs, training=None, mask=None):
         output = self.fm(inputs)
+        output = tf.nn.sigmoid(output)
         return output
 
 
@@ -27,6 +28,7 @@ class DNN(Model):
 
     def call(self, inputs, training=None, mask=None):
         output = self.dnn(inputs)
+        output = tf.nn.sigmoid(output)
         return output
 
 
