@@ -3,7 +3,8 @@
 # @Author : Hcyand
 # @FileName: interaction.py
 import tensorflow as tf
-from keras.layers import Layer, Dense, Dropout, Flatten, Conv2D, MaxPool2D
+from keras.layers import Layer, Dense, Dropout, Flatten, Conv2D, MaxPool2D, Embedding, BatchNormalization, PReLU
+from tensorflow.python.ops.init_ops import Zeros
 from keras.regularizers import l2
 
 
@@ -109,7 +110,7 @@ class FMLayer(Layer):
         inter_part = 0.5 * tf.reduce_sum(inter_part1 - inter_part2, axis=-1, keepdims=True)
 
         output = linear_part + inter_part
-        return tf.nn.sigmoid(output)
+        return output
 
 
 class FFMLayer(Layer):
@@ -274,3 +275,150 @@ class ResLayer(Layer):
 
         output = inputs + x
         return tf.nn.relu(output)
+
+
+##################################################################
+# AFM model's Layers
+class InteractionLayer(Layer):
+    """
+    input shape: [None, field, k]
+    output shape: [None, field * (field - 1) / 2, k]
+    """
+
+    def __init__(self):
+        super(InteractionLayer, self).__init__()
+
+    def call(self, inputs, *args, **kwargs):
+        element_wise_product_list = []
+        # 两两特征embed的multiply记录
+        for i in range(inputs.shape[1]):
+            for j in range(i + 1, inputs.shape[1]):
+                element_wise_product_list.append(tf.multiply(inputs[:, i], inputs[:, j]))
+        element_wise_product = tf.transpose(tf.convert_to_tensor(element_wise_product_list), [1, 0, 2])
+        return element_wise_product
+
+
+class AttentionLayer(Layer):
+    """
+    input shape: [None, n, k]
+    output shape: [None, k]
+    """
+
+    def __init__(self):
+        super(AttentionLayer, self).__init__()
+
+    def build(self, input_shape):
+        self.attention_w = Dense(input_shape[1], activation='relu')
+        self.attention_h = Dense(1, activation=None)
+
+    def call(self, inputs, *args, **kwargs):
+        x = self.attention_w(inputs)
+        x = self.attention_h(x)
+        a_score = tf.nn.softmax(x)
+        a_score = tf.transpose(a_score, [0, 2, 1])
+        output = tf.reshape(tf.matmul(a_score, inputs), shape=(-1, inputs.shape[2]))
+        return output
+
+
+class AFMLayer(Layer):
+    def __init__(self, feature_columns, mode):
+        super(AFMLayer, self).__init__()
+        self.dense_feature_columns, self.sparse_feature_columns = feature_columns
+        self.mode = mode
+        self.embed_layer = {'emb_' + str(i): Embedding(feat['feat_onehot_dim'], feat['embed_dim'])
+                            for i, feat in enumerate(self.sparse_feature_columns)}
+        self.interaction_layer = InteractionLayer()
+        if self.mode == 'att':
+            self.attention_layer = AttentionLayer()
+        self.output_layer = Dense(1)
+
+    def call(self, inputs, *args, **kwargs):
+        dense_inputs, sparse_inputs = inputs[:, :13], inputs[:, 13:]
+        embed = [self.embed_layer['emb_' + str(i)](sparse_inputs[:, i])
+                 for i in range(sparse_inputs.shape[1])]
+        embed = tf.transpose(tf.convert_to_tensor(embed), [1, 0, 2])
+
+        # Pair-wise Interaction
+        embed = self.interaction_layer(embed)
+
+        if self.mode == 'avg':
+            x = tf.reduce_mean(embed, axis=1)
+        elif self.mode == 'max':
+            x = tf.reduce_max(embed, axis=1)
+        else:
+            x = self.attention_layer(embed)
+
+        output = tf.nn.sigmoid(self.output_layer(x))
+        return output
+
+
+class Attention(Layer):
+    def __init__(self, hidden_units, activation='prelu'):
+        """
+        :param hidden_units: 隐层
+        :param activation: 激活函数（prelu、dice）；Dice需要自主实现
+        """
+        super(Attention, self).__init__()
+        self.hidden_units = hidden_units
+        if activation == 'dice':
+            self.activation_layer = [Dice() for _ in range(len(self.hidden_units))]
+        elif activation == 'prelu':
+            self.activation_layer = [Dense(i, activation=PReLU()) for i in hidden_units]
+        self.out_layer = Dense(1, activation=None)
+
+    def call(self, inputs, *args, **kwargs):
+        """
+        query: [None, k]; item embedding layer
+        key: [None, n ,k]; seq embedding layer
+        value: [None, n, k]
+        mask: [None, n]
+        """
+        query, key, value, mask = inputs
+
+        # expand_dims 用于增加维度
+        query = tf.expand_dims(query, axis=1)  # [None, 1, k]
+        # tile对应维度复制几次
+        query = tf.tile(query, [1, key.shape[1], 1])  # [None, n, k]
+        """
+        e.g
+        tf.tile([1,2], [2]) = [1,2,1,2]
+        tf.tile([[1,2][3,4]], [2,3]) = [[1,2,1,2,1,2],
+                                        [3,4,3,4,3,4],
+                                        [1,2,1,2,1,2],
+                                        [3,4,3,4,3,4]]
+        """
+        # 激活单元中连接层操作，包括原输入、元素乘、元素减操作进行concat
+        emb = tf.concat([query, key, query - key, query * key], axis=-1)  # [None, n, 4*k]
+
+        for i in range(len(self.hidden_units)):
+            emb = self.activation_layer[i](emb)
+
+        score = self.out_layer(emb)  # [None, n, 1]
+        score = tf.squeeze(score, axis=-1)  # 移除大小为1的维度 [None, n]
+
+        padding = tf.ones_like(score) * (-2 ** 32 + 1)  # [None, n]
+        # tf.where: return if tf.equal(mask, 0) padding else score
+        score = tf.where(tf.equal(mask, 0), padding, score)  # [None, n]
+
+        score = tf.nn.softmax(score)  # [None, n]
+        output = tf.matmul(tf.expand_dims(score, axis=1), value)  # [None, 1, k]
+        output = tf.squeeze(output, axis=1)  # [None, k]
+        return output
+
+
+class Dice(Layer):
+    def __init__(self, axis=-1, epsilon=1e-9):
+        super(Dice, self).__init__()
+        self.axis = axis
+        self.epsilon = epsilon
+
+    def build(self, input_shape):
+        self.bn = BatchNormalization(
+            axis=self.axis, epsilon=self.epsilon, center=False, scale=False)
+        self.alphas = self.add_weight(shape=(input_shape[-1],), initializer=Zeros(), dtype=tf.float32, name='dice_alpha')
+        self.uses_learning_phase = True
+
+    def call(self, inputs, training=None, *args, **kwargs):
+        inputs_normed = self.bn(inputs, training=training)
+        x_p = tf.sigmoid(inputs_normed)
+        return self.alphas * (1.0 - x_p) * inputs + x_p * inputs
