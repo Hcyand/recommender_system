@@ -16,6 +16,7 @@ import collections
 import heapq
 from sklearn.preprocessing import MinMaxScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
+from utils.feature_column import DenseFeat, SparseFeat, VarLenSparseFeat, get_feature_names
 
 file_ratings = '../../data/ml-1m/ratings.dat'
 file_users = '../../data/ml-1m/users.dat'
@@ -113,3 +114,25 @@ def create_movies_dataset(test_size=0.3, n=10):
     # len(np.unique(list(data[feat].values))) 不能这么处理，因为有些item之前可能没有出现过，所以需要记录的是所有item的量级
 
     return feature_columns, (X_train, y_train), (X_test, y_test)
+
+
+def test(use_neg=False, hash_flag=False):
+    feature_columns = [DenseFeat(feat, 1) for feat in dense_features]
+    feature_columns += [SparseFeat(feat, 1, embedding_dim=1, use_hash=hash_flag)
+                        for feat in sparse_features]
+    feature_columns += [VarLenSparseFeat(SparseFeat(feat, vocabulary_size=1, embedding_dim=1, embedding_name=feat),
+                                         maxlen=4, length_name='seq_length') for feat in behavior_features]
+
+    behavior_feature_list = ["movie_id"]
+    behavior_length = None
+
+    feature_dict = {'user_id': None}
+    # 直接转化为DataFrame形式
+
+    if use_neg:
+        feature_columns += []
+
+    x = {name: feature_dict[name] for name in get_feature_names(feature_columns)}
+    y = None
+
+    return x, y, feature_columns, behavior_feature_list

@@ -415,10 +415,114 @@ class Dice(Layer):
     def build(self, input_shape):
         self.bn = BatchNormalization(
             axis=self.axis, epsilon=self.epsilon, center=False, scale=False)
-        self.alphas = self.add_weight(shape=(input_shape[-1],), initializer=Zeros(), dtype=tf.float32, name='dice_alpha')
+        self.alphas = self.add_weight(shape=(input_shape[-1],), initializer=Zeros(), dtype=tf.float32,
+                                      name='dice_alpha')
         self.uses_learning_phase = True
 
     def call(self, inputs, training=None, *args, **kwargs):
         inputs_normed = self.bn(inputs, training=training)
         x_p = tf.sigmoid(inputs_normed)
         return self.alphas * (1.0 - x_p) * inputs + x_p * inputs
+
+
+class mmoe_layer(Layer):
+    def __init__(self, hidden_units, num_experts, num_tasks, use_expert_bias=True, use_gate_bias=True, **kwargs):
+        super(mmoe_layer, self).__init__(**kwargs)
+        self.hidden_units = hidden_units
+        self.num_experts = num_experts
+        self.num_tasks = num_tasks
+        self.use_expert_bias = use_expert_bias
+        self.use_gate_bias = use_gate_bias
+
+    def build(self, input_shape):
+        # expert网络， 形状为[input_shape[-1], hidden_units, num_experts]
+        # 每个expert将输入维度从input_shape[-1]映射到hidden_units
+        self.expert_matrix = self.add_weight(
+            name='expert_matrix',
+            shape=(input_shape[-1], self.hidden_units, self.num_experts),
+            trainable=True,
+            initializer=tf.random_normal_initializer(),
+            regularizer=l2(1e-4)
+        )
+
+        # expert网络偏置项，形状为[hidden_units, num_experts]
+        if self.use_expert_bias:
+            self.expert_bias = self.add_weight(
+                name='expert_bias',
+                shape=(self.hidden_units, self.num_experts),
+                trainable=True,
+                initializer=tf.random_normal_initializer,
+                regularizer=l2(1e-4)
+            )
+
+        # gate网络，每个gate形状为[input_shape[-1], num_experts]
+        # 总共num_tasks个gate，每个对应一个任务
+        self.gate_matrix = [self.add_weight(
+            name='gate_matrix' + str(i),
+            shape=(input_shape[-1], self.num_experts),
+            trainable=True,
+            initializer=tf.random_normal_initializer(),
+            regularizer=l2(1e-4)
+        ) for i in range(self.num_tasks)]
+
+        # gate网络偏执项，形状为[num_experts]，总共num_tasks个
+        if self.use_gate_bias:
+            self.gate_bias = [self.add_weight(
+                name='gate_bias' + str(i),
+                shape=(self.num_experts,),
+                trainable=True,
+                initializer=tf.random_normal_initializer(),
+                regularizer=l2(1e-4)
+            ) for i in range(self.num_tasks)]
+
+    def call(self, inputs, *args, **kwargs):
+        # inputs x expert = [None, input_shape[-1]] x [input_shape[-1], hidden_units, num_experts]
+        # get [None, hidden_units, num_experts]
+        expert_output = []
+        for i in range(self.num_experts):
+            expert_out = tf.matmul(inputs, self.expert_matrix[:, :, i])
+            expert_output.append(expert_out)
+        expert_output = tf.transpose(
+            tf.convert_to_tensor(expert_output), [1, 2, 0])  # [None, hidden_units, num_experts]
+
+        # 加偏执，形状保持不变
+        if self.use_expert_bias:
+            expert_output += self.expert_bias
+        expert_output = tf.nn.relu(expert_output)
+
+        # inputs x gate = [None, input_shape[-1]] x [input_shape[-1], num_experts]
+        # num_tasks个gate得到输出列表 num_tasks x [None, num_experts]
+        gate_outputs = []
+        for i, gate in enumerate(self.gate_matrix):
+            gate_out = tf.matmul(inputs, gate)
+            if self.use_gate_bias:
+                gate_out += self.gate_bias[i]
+            gate_out = tf.nn.softmax(gate_out)
+
+            gate_outputs.append(gate_out)  # list: num_tasks x [None, num_experts]
+
+        # gate与expert的输出相乘
+        outputs = []
+        for gate_out in gate_outputs:
+            gate_out = tf.expand_dims(gate_out, axis=1)  # 维度扩展 [None, 1, num_experts]
+            gate_out = tf.tile(gate_out, [1, self.hidden_units, 1])  # 维度复制 [None, hidden_units, num_experts]
+
+            out = tf.multiply(gate_out, expert_output)  # 元素乘 [None, hidden_units, num_experts]
+            out = tf.reduce_sum(out, axis=-1)  # 取平均 [None, hidden_units]
+            outputs.append(out)
+
+        return outputs  # list: num_tasks x [None, hidden_units]
+
+
+class tower_layer(Layer):
+    def __init__(self, hidden_units, output_dim, activation='relu'):
+        self.hidden_layer = [Dense(i, activation=activation) for i in hidden_units]
+        self.output_layer = Dense(output_dim, activation=None)
+        super(tower_layer, self).__init__()
+
+    def call(self, inputs, *args, **kwargs):
+        x = inputs
+        for layer in self.hidden_layer:
+            x = layer(x)
+        output = self.output_layer(x)
+        return output
