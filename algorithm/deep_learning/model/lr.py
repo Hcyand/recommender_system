@@ -1,9 +1,13 @@
-# logistic回归算法实现
+# -*- coding: utf-8 -*-            
+# @Time : 2022/8/22 22:42
+# @Author : Hcyand
+# @FileName: lr.py
+
+# 逻辑回归算法 Logistic Regression
 import numpy as np
 import time
 
 import pandas as pd
-import matplotlib.pyplot as plt
 
 
 class LogisticRegression:

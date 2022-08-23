@@ -1,7 +1,12 @@
-# 利用矩阵分解进行推荐
+# -*- coding: utf-8 -*-            
+# @Time : 2022/8/22 22:43
+# @Author : Hcyand
+# @FileName: md.py
+
+# 矩阵分解算法 Matrix Decomposition
 import numpy as np
 from math import pow
-from collaborative_filtering import top_k
+from layer.utils import top_k
 
 
 class MatrixFactorization:

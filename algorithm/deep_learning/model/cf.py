@@ -1,60 +1,14 @@
+# -*- coding: utf-8 -*-            
+# @Time : 2022/8/22 22:40
+# @Author : Hcyand
+# @FileName: cf.py
+
+# 协同过滤算法 Collaborative Filtering
 # 协同过滤算法python实现
 # 采用的例子为用户-电影：Users-Movies
 import numpy as np
 import heapq
-
-
-# 欧氏距离
-def euclidean(list_1, list_2):
-    res = np.sqrt(((np.array(list_1) - np.array(list_2)) ** 2).sum())
-    return res
-
-
-# 皮尔逊相关系数
-def pearson(list_1, list_2):
-    avg_1 = np.mean(list_1)
-    avg_2 = np.mean(list_2)
-    tmp1, tmp2, tmp3 = 0, 0, 0
-    for i in range(len(list_1)):
-        tmp1 += (list_1[i] - avg_1) ** 2
-        tmp2 += (list_2[i] - avg_2) ** 2
-        tmp3 += (list_1[i] - avg_1) * (list_2[i] - avg_2)
-    res = round(tmp3 / (np.sqrt(tmp1) * np.sqrt(tmp2) + 0.001), 4)
-    return res
-
-
-# 输出top k列表，利用最大/小堆实现
-def top_k(candidate, k):
-    """
-    :param candidate: list 候选数据集列表，存储形式[[user,score],[...],...]
-    :param k: int 选取top_k候选元素
-    :return: list
-    """
-    q = []
-    heapq.heapify(q)
-    for i in range(len(candidate)):
-        tmp = [candidate[i][1], candidate[i][0]]
-        if len(q) < k:  # 长度不足时直接加入
-            heapq.heappush(q, tmp)
-        else:
-            if q[0][0] < tmp[0]:  # 进行判断
-                heapq.heappop(q)
-                heapq.heappush(q, tmp)
-    res = sorted(q, reverse=True)
-    return res
-
-
-# 存储相似度得分
-def calculate_sim(arr, t):
-    m = len(arr)
-    dp = [[0] * m for _ in range(m)]
-    for i in range(m):
-        for j in range(m):
-            if t == 'euc':
-                dp[i][j] = euclidean(arr[i], arr[j])
-            elif t == 'pea':
-                dp[i][j] = pearson(arr[i], arr[j])
-    return dp
+from layer.utils import euclidean, pearson, top_k, calculate_sim
 
 
 # 计算物品之间的相似度，并进行推荐
