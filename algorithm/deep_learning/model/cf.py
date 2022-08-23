@@ -7,8 +7,7 @@
 # 协同过滤算法python实现
 # 采用的例子为用户-电影：Users-Movies
 import numpy as np
-import heapq
-from layer.utils import euclidean, pearson, top_k, calculate_sim
+from layer.utils import top_k, calculate_sim
 
 
 # 计算物品之间的相似度，并进行推荐
@@ -22,14 +21,14 @@ class ItemCF:
 
     # 统计所有电影之间相似度，存入数组中
     def all_movies_sim(self):
-        arr_movies = list(np.array(self.users_movies).transpose())  # 计算电影相似度时，将原数组行专列
+        arr_movies = list(np.array(self.users_movies).transpose())  # 计算电影相似度时，将原数组行转列
         dp = calculate_sim(arr_movies, self.t)
         return dp
 
     # 相似电影推荐
     def rec_movies(self, user, k):
         m = self.users.index(user)  # 用户user下标
-        looked = self.users_movies[m]  # 用户浏览过的电影队列
+        looked = self.users_movies[m]  # 用户m的电影队列
         assert len(looked) == len(self.scores[m]), 'Unequal lengths'
         # candidate[1]需要是一个数值越大排名越前的数组，所以取负
         candidate = [[self.movies[i], -round(self.scores[m][i], 3)] for i in range(len(looked)) if looked[i] == 0]
@@ -54,7 +53,7 @@ class UserCF:
     def rec_movies(self, user, k1, k2):
         m = self.users.index(user)
         score = [0] * len(self.movies)  # 初始分数为0
-        looked = self.users_movies[m]  # 用户浏览过的电影队列
+        looked = self.users_movies[m]  # 用户m的电影队列
         tmp = []
         if self.t == 'euc':
             # 输出top k1个用户
