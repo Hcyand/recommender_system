@@ -7,7 +7,7 @@ from layer.inputs import EmbedLayer
 import tensorflow as tf
 from keras.layers import Dense
 from keras import Model
-from utils.criteo_dataset import create_criteo_dataset, features_dict
+from utils.dataset import create_criteo_dataset, features_dict
 from utils.compile_fit import compile_fit
 from sklearn.metrics import accuracy_score
 

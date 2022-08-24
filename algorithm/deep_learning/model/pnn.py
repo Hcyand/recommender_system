@@ -3,7 +3,7 @@
 # @Author : Hcyand
 # @FileName: pnn.py
 from layer.interaction import DNNLayer, InnerProductLayer, OuterProductLayer, FGCNNLayer
-from utils.criteo_dataset import create_criteo_dataset, features_dict
+from utils.dataset import create_criteo_dataset, features_dict
 import tensorflow as tf
 from keras.models import Model
 from keras.layers import Embedding

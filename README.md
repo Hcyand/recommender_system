@@ -17,6 +17,9 @@
 |      PNN      | [PNN算法Python代码实现](https://hcyand.top/pnn%E7%AE%97%E6%B3%95%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0) |
 |  Wide & Deep  | [Wide & Deep算法Python代码实现](https://hcyand.top/wide-deep%E7%AE%97%E6%B3%95%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0) |
 | Deep & Cross  | [Deep & Cross算法Python代码实现](https://hcyand.top/deep-cross%E7%AE%97%E6%B3%95%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0) |
+|      FNN      |                   [FNN算法Python代码实现]                    |
+|    DeepFM     |                  [DeepFM算法Python代码实现]                  |
+|      NFM      |                   [NFM算法Python代码实现]                    |
 |      DIN      | [DIN算法Python代码实现](https://hcyand.top/din%E7%AE%97%E6%B3%95%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0) |
 |     DIEN      |                   [DIEN算法Python代码实现]                   |
 |     MMOE      |                   [MMOE算法Python代码实现]                   |

@@ -35,6 +35,7 @@ class SparseFeat(namedtuple('SparseFeat',
                                               embedding_name, group_name, trainable)
 
     def __hash__(self):
+        """__hash__基于对象内部的ID值生成哈希值"""
         return self.name.__hash__()
 
 
@@ -108,14 +109,6 @@ class DenseFeat(namedtuple('DenseFeat', ['name', 'dimension', 'dtype', 'transfor
 
     def __hash__(self):
         return self.name.__hash__()
-
-    # def __eq__(self, other):
-    #     if self.name == other.name:
-    #         return True
-    #     return False
-
-    # def __repr__(self):
-    #     return 'DenseFeat:'+self.name
 
 
 def get_feature_names(feature_columns):

@@ -1,23 +1,83 @@
 # -*- coding: utf-8 -*-            
-# @Time : 2022/8/9 23:15
+# @Time : 2022/8/24 13:50
 # @Author : Hcyand
-# @FileName: movie_lens.py
-# 对movie_lens数据进行处理
-# 需要获取的数据：
-# 用户-电影表（用户属性、电影属性、评分等）；
-# 用户-电影序列表：用户最近好评的10部电影（评分大于等于3为好评）；
-# 电影序列表：电影序列数据；
-# rating > 3的为正，其余为负
-# 将用户随机划分，分为训练集和测试集
-# 用户的历史电影评分序列，取最近时间的结果为训练集，其余为历史序列
-import numpy as np
+# @FileName: dataset.py
+"""
+分为criteo数据集和movieLens数据集的处理和输出，分别适用的模型为：
+criteo：[FM, FNN, FFM, DeepCrossing, PNN, DCN, NFM, DeepFM, WideDeep]
+movieLens：[DIN, DIEN]
+"""
 import pandas as pd
+import numpy as np
 import collections
 import heapq
 from sklearn.preprocessing import MinMaxScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
-from utils.feature_column import DenseFeat, SparseFeat, VarLenSparseFeat, get_feature_names
 
+
+# 对类别特征的记录
+def sparseFeature(feat, feat_onehot_dim, embed_dim):
+    # 特征、one_hot维度、embed维度
+    return {'feat': feat, 'feat_onehot_dim': feat_onehot_dim, 'embed_dim': embed_dim}
+
+
+# 对数据值特征记录
+def denseFeature(feat):
+    return {'feat': feat}
+
+
+##################################################################################################
+# Get criteo dataset
+# 使用当前数据集的模型: [FM, FNN, FFM, DeepCrossing, PNN, DCN, NFM, DeepFM, WideDeep]
+criteo_dense_features = ['I' + str(i) for i in range(1, 14)]
+criteo_sparse_features = ['C' + str(i) for i in range(1, 27)]
+
+
+def create_criteo_dataset(t, file_path, test_size=0.3):
+    # 数值特征和类别特征名
+    data = pd.read_csv(file_path, sep='\t', header=None,
+                       names=['label'] + criteo_dense_features + criteo_sparse_features)
+
+    # 缺失值填充
+    data[criteo_dense_features] = data[criteo_dense_features].fillna(0)
+    data[criteo_sparse_features] = data[criteo_sparse_features].fillna('-1')
+
+    # 归一化
+    data[criteo_dense_features] = MinMaxScaler().fit_transform(data[criteo_dense_features])
+    if t in ['fm', 'fnn']:
+        data = pd.get_dummies(data)
+    elif t in ['ffm', 'DeepCrossing', 'pnn', 'dcn', 'DeepFM', 'nfm']:
+        # LabelEncoding编码
+        for col in criteo_sparse_features:
+            data[col] = LabelEncoder().fit_transform(data[col]).astype(int)
+    elif t == 'WideDeep':
+        onehot_data = pd.get_dummies(data)
+        onehot_data = onehot_data.drop(['label'], axis=1)
+        for col in criteo_sparse_features:
+            data[col] = LabelEncoder().fit_transform(data[col]).astype(int)
+        data = pd.concat([data, onehot_data], axis=1)
+
+    # 数据集划分
+    X = data.drop(['label'], axis=1).values
+    y = data['label'].values
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size)
+
+    return (X_train, y_train), (X_test, y_test)
+
+
+# dict 用于存储特征信息以及处理方式
+def features_dict(file_path, embed_dim=8):
+    data = pd.read_csv(file_path, sep='\t', header=None,
+                       names=['label'] + criteo_dense_features + criteo_sparse_features)
+
+    feature_columns = [[denseFeature(feat) for feat in criteo_dense_features]] + \
+                      [[sparseFeature(feat, data[feat].nunique() + 1, embed_dim) for feat in criteo_sparse_features]]
+    return feature_columns
+
+
+##################################################################################################
+# movie lens Dataset
+# 使用该数据集的模型为: [DIN, DIEN]
 file_ratings = '../../data/ml-1m/ratings.dat'
 file_users = '../../data/ml-1m/users.dat'
 file_movies = '../../data/ml-1m/movies.dat'
@@ -37,15 +97,6 @@ def latest_top_k(seq, k, candidate):
             heapq.heappush(seq, candidate)
     seq = sorted(seq, reverse=True)
     return seq
-
-
-def sparseFeature(feat, feat_onehot_dim, embed_dim):
-    # 特征、one_hot维度、embed维度
-    return {'feat': feat, 'feat_onehot_dim': feat_onehot_dim, 'embed_dim': embed_dim}
-
-
-def denseFeature(feat):
-    return {'feat': feat}
 
 
 def create_movies_dataset(test_size=0.3, n=10):
@@ -68,7 +119,7 @@ def create_movies_dataset(test_size=0.3, n=10):
     ratings_latest = ratings[s]  # 最近时间的用户的评价数据
     ratings_old = ratings[[not x for x in s]]  # 用户历史的评价数据
 
-    # 输出用户历史的喜爱电影序列movies_seq
+    # 获取用户历史的喜爱电影序列movies_seq
     d, u_seq = collections.defaultdict(list), collections.defaultdict(list)
     like_rate = np.array(ratings_old.query('rating >= 3')[['user_id', 'movie_id', 'timestamp']])  # 历史喜爱电影
     for user, movie, times in like_rate:
@@ -114,25 +165,3 @@ def create_movies_dataset(test_size=0.3, n=10):
     # len(np.unique(list(data[feat].values))) 不能这么处理，因为有些item之前可能没有出现过，所以需要记录的是所有item的量级
 
     return feature_columns, (X_train, y_train), (X_test, y_test)
-
-
-def test(use_neg=False, hash_flag=False):
-    feature_columns = [DenseFeat(feat, 1) for feat in dense_features]
-    feature_columns += [SparseFeat(feat, 1, embedding_dim=1, use_hash=hash_flag)
-                        for feat in sparse_features]
-    feature_columns += [VarLenSparseFeat(SparseFeat(feat, vocabulary_size=1, embedding_dim=1, embedding_name=feat),
-                                         maxlen=4, length_name='seq_length') for feat in behavior_features]
-
-    behavior_feature_list = ["movie_id"]
-    behavior_length = None
-
-    feature_dict = {'user_id': None}
-    # 直接转化为DataFrame形式
-
-    if use_neg:
-        feature_columns += []
-
-    x = {name: feature_dict[name] for name in get_feature_names(feature_columns)}
-    y = None
-
-    return x, y, feature_columns, behavior_feature_list

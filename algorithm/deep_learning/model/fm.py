@@ -3,7 +3,7 @@
 # @Author : Hcyand
 # @FileName: fm.py
 from layer.interaction import FMLayer
-from utils.criteo_dataset import create_criteo_dataset
+from utils.dataset import create_criteo_dataset
 from utils.compile_fit import compile_fit
 
 import tensorflow as tf

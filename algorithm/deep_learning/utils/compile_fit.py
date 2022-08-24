@@ -3,7 +3,7 @@
 # @Author : Hcyand
 # @FileName: compile_fit.py
 import tensorflow as tf
-from keras import optimizers
+from tensorflow.python.keras import optimizers
 
 
 def compile_fit(model, X, y, batch_size=32, epochs=10, sgd=0.01):

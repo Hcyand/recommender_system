@@ -4,7 +4,7 @@
 # @FileName: wideDeep.py
 from layer.interaction import WideLayer, DNNLayer
 from layer.inputs import EmbedLayer
-from utils.criteo_dataset import create_criteo_dataset, features_dict
+from utils.dataset import create_criteo_dataset, features_dict
 from utils.compile_fit import compile_fit
 import tensorflow as tf
 from keras import Model

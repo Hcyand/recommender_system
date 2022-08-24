@@ -3,7 +3,7 @@
 # @Author : Hcyand
 # @FileName: ffm.py
 from layer.interaction import FFMLayer
-from utils.criteo_dataset import create_criteo_dataset, features_dict
+from utils.dataset import create_criteo_dataset, features_dict
 from utils.compile_fit import compile_fit
 
 import tensorflow as tf

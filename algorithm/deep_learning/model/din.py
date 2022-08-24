@@ -7,7 +7,7 @@ import collections
 import numpy as np
 
 from layer.interaction import Attention, Dice
-from utils.movie_lens import create_movies_dataset
+from utils.dataset import create_movies_dataset
 from utils.compile_fit import compile_fit
 
 import tensorflow as tf

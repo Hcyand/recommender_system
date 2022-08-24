@@ -26,6 +26,7 @@ class WideLayer(Layer):
         return x
 
 
+# 可见core DNN
 class DNNLayer(Layer):
     def __init__(self, hidden_units, output_dim, activation='relu', dropout=0.2):
         super(DNNLayer, self).__init__()
@@ -277,8 +278,6 @@ class ResLayer(Layer):
         return tf.nn.relu(output)
 
 
-##################################################################
-# AFM model's Layers
 class InteractionLayer(Layer):
     """
     input shape: [None, field, k]

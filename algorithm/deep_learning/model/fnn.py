@@ -4,7 +4,7 @@
 # @FileName: fnn.py
 from layer.interaction import FMLayer, DNNLayer
 from keras.models import Model
-from utils.criteo_dataset import create_criteo_dataset
+from utils.dataset import create_criteo_dataset
 import tensorflow as tf
 from keras import optimizers, losses, metrics
 from sklearn.metrics import accuracy_score
