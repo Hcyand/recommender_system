@@ -121,8 +121,8 @@ class FFMLayer(Layer):
         self.k = k
         self.w_reg = w_reg
         self.v_reg = v_reg
-        self.feature_num = sum([feat['feat_onehot_dim'] for feat in self.sparse_feature_columns]) + len(
-            self.dense_feature_columns)
+        self.feature_num = sum([feat['feat_onehot_dim'] for feat in self.sparse_feature_columns]) \
+                           + len(self.dense_feature_columns)
         self.field_num = len(self.dense_feature_columns) + len(self.sparse_feature_columns)
 
     def build(self, input_shape):

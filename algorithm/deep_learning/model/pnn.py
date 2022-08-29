@@ -6,7 +6,7 @@ from layer.interaction import DNNLayer, InnerProductLayer, OuterProductLayer, FG
 from utils.dataset import create_criteo_dataset, features_dict
 import tensorflow as tf
 from keras.models import Model
-from keras.layers import Embedding
+from layer.core import EmbedLayer
 from keras import optimizers, losses
 from sklearn.metrics import accuracy_score
 
@@ -20,10 +20,7 @@ class PNN(Model):
         self.dnn_layer = DNNLayer(hidden_units, output_dim, activation, dropout)
         self.inner_product_layer = InnerProductLayer()
         self.outer_product_layer = OuterProductLayer()
-        self.embed_layers = {
-            'embed_' + str(i): Embedding(feat['feat_onehot_dim'], feat['embed_dim'])
-            for i, feat in enumerate(self.sparse_feature_columns)
-        }
+        self.embed_layer = EmbedLayer(self.sparse_feature_columns)
         self.use_fgcnn = use_fgcnn
         if use_fgcnn:
             self.fgcnn_layer = FGCNNLayer()
@@ -31,9 +28,7 @@ class PNN(Model):
     def call(self, inputs, training=None, mask=None):
         dense_inputs, sparse_inputs = inputs[:, :13], inputs[:, 13:]
 
-        embed = [self.embed_layers['embed_{}'.format(i)](sparse_inputs[:, i])
-                 for i in range(sparse_inputs.shape[1])]
-        embed = tf.transpose(tf.convert_to_tensor(embed), [1, 0, 2])
+        embed = self.embed_layer(sparse_inputs)
 
         if self.use_fgcnn:
             fgcnn_out = self.fgcnn_layer(embed)

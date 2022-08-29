@@ -3,7 +3,7 @@
 # @Author : Hcyand
 # @FileName: dcn.py
 from layer.interaction import DNNLayer, CrossLayer
-from layer.inputs import EmbedLayer
+from layer.core import EmbedLayer
 import tensorflow as tf
 from keras.layers import Dense
 from keras import Model

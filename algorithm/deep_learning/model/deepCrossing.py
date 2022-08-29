@@ -3,13 +3,12 @@
 # @Author : Hcyand
 # @FileName: deepCrossing.py
 from layer.interaction import ResLayer
-from layer.inputs import EmbedLayer
+from layer.core import EmbedLayer
 from utils.dataset import create_criteo_dataset, features_dict
 from utils.compile_fit import compile_fit
 import tensorflow as tf
 from keras.models import Model
 from keras.layers import Dense
-from keras import optimizers
 from sklearn.metrics import accuracy_score
 
 
@@ -17,7 +16,9 @@ class DeepCrossing(Model):
     def __init__(self, feature_columns, k, hidden_units, res_layer_num):
         super(DeepCrossing, self).__init__()
         self.dense_feature_columns, self.sparse_feature_columns = feature_columns
+        # Embedding层
         self.embed_layer = EmbedLayer(self.sparse_feature_columns)
+        # Multiple Residual Units层：多层感知机
         self.res_layer = [ResLayer(hidden_units) for _ in range(res_layer_num)]
         self.output_layer = Dense(1, activation='sigmoid')
 

@@ -21,15 +21,15 @@ class MMOE(Model):
             for _ in range(num_tasks)
         ]
 
-        def call(self, inputs, training=None, mask=None):
-            mmoe_outputs = self.mmoe_layer(inputs)
+    def call(self, inputs, training=None, mask=None):
+        mmoe_outputs = self.mmoe_layer(inputs)
 
-            outputs = []
-            for i, layer in enumerate(self.tower_layer):
-                out = layer(mmoe_outputs[i])
-                outputs.append(out)
+        outputs = []
+        for i, layer in enumerate(self.tower_layer):
+            out = layer(mmoe_outputs[i])
+            outputs.append(out)
 
-            return outputs  # num_tasks * [None, output_dim]
+        return outputs  # num_tasks * [None, output_dim]
 
 
 if __name__ == '__main__':

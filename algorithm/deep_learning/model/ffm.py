@@ -7,9 +7,8 @@ from utils.dataset import create_criteo_dataset, features_dict
 from utils.compile_fit import compile_fit
 
 import tensorflow as tf
-from keras import Model, losses
+from tensorflow.python.keras import Model
 from sklearn.metrics import accuracy_score
-from keras import optimizers
 
 
 class FFM(Model):

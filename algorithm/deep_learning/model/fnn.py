@@ -6,7 +6,7 @@ from layer.interaction import FMLayer, DNNLayer
 from keras.models import Model
 from utils.dataset import create_criteo_dataset
 import tensorflow as tf
-from keras import optimizers, losses, metrics
+from tensorflow.python.keras import optimizers
 from sklearn.metrics import accuracy_score
 
 
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     k = 8
 
     model = FM(k)
-    optimizer = optimizers.SGD(0.01)
+    optimizer = optimizers.gradient_descent_v2.SGD(0.01)
 
     train_dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train))
     train_dataset = train_dataset.batch(32).prefetch(tf.data.experimental.AUTOTUNE)
@@ -55,7 +55,7 @@ if __name__ == '__main__':
 
     hidden_units = [256, 128, 64]
     model = DNN(hidden_units, 1, 'relu')
-    optimizer = optimizers.SGD(0.0001)
+    optimizer = optimizers.gradient_descent_v2.SGD(0.0001)
 
     train_dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train))
     train_dataset = train_dataset.batch(32).prefetch(tf.data.experimental.AUTOTUNE)

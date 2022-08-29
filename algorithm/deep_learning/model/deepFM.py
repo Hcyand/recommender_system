@@ -3,7 +3,7 @@
 # @Author : Hcyand
 # @FileName: deepFM.py
 from layer.interaction import FMLayer, DNNLayer
-from layer.inputs import EmbedLayer
+from layer.core import EmbedLayer
 from utils.dataset import create_criteo_dataset, features_dict
 from utils.compile_fit import compile_fit
 

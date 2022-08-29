@@ -2,10 +2,6 @@
 # @Time : 2022/8/8 18:05
 # @Author : Hcyand
 # @FileName: din.py
-import collections
-
-import numpy as np
-
 from layer.interaction import Attention, Dice
 from utils.dataset import create_movies_dataset
 from utils.compile_fit import compile_fit
