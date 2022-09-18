@@ -17,12 +17,14 @@
 |      PNN      | [PNN算法Python代码实现](https://hcyand.top/pnn%E7%AE%97%E6%B3%95%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0) |
 |  Wide & Deep  | [Wide & Deep算法Python代码实现](https://hcyand.top/wide-deep%E7%AE%97%E6%B3%95%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0) |
 | Deep & Cross  | [Deep & Cross算法Python代码实现](https://hcyand.top/deep-cross%E7%AE%97%E6%B3%95%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0) |
-|      FNN      |                   [FNN算法Python代码实现]                    |
-|    DeepFM     |                  [DeepFM算法Python代码实现]                  |
-|      NFM      |                   [NFM算法Python代码实现]                    |
+|      FNN      | [FNN算法Python代码实现](https://nextjs-notion-starter-gpfkn5oqn-hcyand.vercel.app/fnn%E7%AE%97%E6%B3%95%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0) |
+|    DeepFM     | [DeepFM算法Python代码实现](https://nextjs-notion-starter-gpfkn5oqn-hcyand.vercel.app/deepfm%E7%AE%97%E6%B3%95%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0) |
+|      NFM      | [NFM算法Python代码实现](https://nextjs-notion-starter-gpfkn5oqn-hcyand.vercel.app/nfm%E7%AE%97%E6%B3%95%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0) |
 |      DIN      | [DIN算法Python代码实现](https://hcyand.top/din%E7%AE%97%E6%B3%95%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0) |
-|     DIEN      |                   [DIEN算法Python代码实现]                   |
-|     MMOE      |                   [MMOE算法Python代码实现]                   |
+|     DIEN      | [DIEN算法Python代码实现](https://nextjs-notion-starter-gpfkn5oqn-hcyand.vercel.app/dien%E7%AE%97%E6%B3%95%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0) |
+|     MMOE      | [MMOE算法Python代码实现](https://nextjs-notion-starter-gpfkn5oqn-hcyand.vercel.app/mmoe%E7%AE%97%E6%B3%95%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0) |
+|     LSTM      | [LSTM算法Python代码实现](https://nextjs-notion-starter-gpfkn5oqn-hcyand.vercel.app/lstm%E7%AE%97%E6%B3%95%E5%8E%9F%E7%90%86) |
+|  Transformer  | [Transofrmer算法原理和代码实现](https://nextjs-notion-starter-gpfkn5oqn-hcyand.vercel.app/transformer%E6%A8%A1%E5%9E%8B%E5%8E%9F%E7%90%86%E5%92%8C%E4%BB%A3%E7%A0%81%E5%AE%9E%E7%8E%B0) |
 
 ## Introduction
 
