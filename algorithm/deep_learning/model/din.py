@@ -2,6 +2,14 @@
 # @Time : 2022/8/8 18:05
 # @Author : Hcyand
 # @FileName: din.py
+"""
+当前属于DIN算法的基本实现，目前只讨论其需要的基本参数以及算法的简单实现；
+学习路径推荐：
+1. 算法原理文章阅读，了解其不同于其它算法的核心在于Activation Unit和PReLU/Dice；
+2. 代码块需要额外注意用户行为序列特征(behaviors features)的获取(create_movies_dataset)、处理等方式;
+3. Activation unit和 PReLU/Dice的代码实现分别为Attention、Dice func；
+4. 最后按照文章中图示的算法结构复现出来即可；
+"""
 from layer.interaction import Attention, Dice
 from utils.dataset import create_movies_dataset
 from utils.compile_fit import compile_fit
@@ -30,12 +38,12 @@ class DIN(Model):
         self.dense_feature_columns, self.sparse_feature_columns = feature_columns
         self.behavior_feature_list = behavior_feature_list
 
-        # 除去behavior feature的数量
+        # 除去behavior feature的数量记录
         self.other_sparse_num = len(self.sparse_feature_columns) - len(behavior_feature_list)
         self.dense_num = len(self.dense_feature_columns)
         self.behavior_num = len(behavior_feature_list)
 
-        # other sparse embedding
+        # other sparse embedding list
         self.embed_sparse_layers = [Embedding(feat['feat_onehot_dim'], feat['embed_dim'])
                                     for feat in self.sparse_feature_columns
                                     if feat['feat'] not in behavior_feature_list]
@@ -46,6 +54,7 @@ class DIN(Model):
 
         # activation layer
         self.att_layer = Attention(att_hidden_units, att_attention)
+
         self.bn_layer = BatchNormalization(trainable=True)
         self.dense_layer = [Dense(unit, activation=PReLU() if dnn_activation == 'prelu' else Dice())
                             for unit in dnn_hidden_units]
@@ -59,30 +68,27 @@ class DIN(Model):
         history_seq: (None, n, k); n=len(seq); k=embed_dim
         candidate_item: (None, k); k=embed_dim
         """
+        # other inputs >> concat other features embedding
         dense_inputs = tf.transpose([inputs[feat['feat']] for feat in self.dense_feature_columns])
         sparse_inputs = tf.transpose([inputs[feat['feat']] for feat in self.sparse_feature_columns
                                       if feat['feat'] not in self.behavior_feature_list])
+        other_feat = tf.concat([layer(sparse_inputs[:, i]) for i, layer in enumerate(self.embed_sparse_layers)],
+                               axis=-1)
+        other_feat = tf.concat([other_feat, dense_inputs], axis=-1)  # dense & sparse inputs embedding concat
+
+        # behaviors input >> attention embedding
         history_seq = tf.transpose([inputs[feat['feat']] for feat in self.sparse_feature_columns
                                     if feat['feat'] in self.behavior_feature_list], [1, 2, 0])
         candidate_item = tf.transpose([inputs['movie_id']])
-
-        # dense & sparse inputs embedding
-        other_feat = tf.concat([layer(sparse_inputs[:, i]) for i, layer in enumerate(self.embed_sparse_layers)],
-                               axis=-1)
-        other_feat = tf.concat([other_feat, dense_inputs], axis=-1)
-
-        # history_seq & candidate_item embedding
-        # (None, n, k)
-        seq_embed = tf.concat([layer(history_seq[:, :, i]) for i, layer in enumerate(self.embed_seq_layers)], axis=-1)
-        # (None, k)
-        item_embed = tf.concat([layer(candidate_item[:, i]) for i, layer in enumerate(self.embed_seq_layers)], axis=-1)
-
-        # one_hot之后第一维是1的token，为填充的0
-        mask = tf.cast(tf.not_equal(history_seq[:, :, 0], 0), dtype=tf.float32)
+        seq_embed = tf.concat([layer(history_seq[:, :, i])
+                               for i, layer in enumerate(self.embed_seq_layers)], axis=-1)  # (None, n, k)
+        item_embed = tf.concat([layer(candidate_item[:, i])
+                                for i, layer in enumerate(self.embed_seq_layers)], axis=-1)  # (None, k)
+        mask = tf.cast(tf.not_equal(history_seq[:, :, 0], 0), dtype=tf.float32)  # Mask操作，用来遮盖序列中空值
         att_emb = self.att_layer([item_embed, seq_embed, seq_embed, mask])
 
-        # 若其它特征不为empty
-        if self.dense_num > 0 or self.other_sparse_num > 0:
+        # all embedding concat
+        if self.dense_num > 0 or self.other_sparse_num > 0:  # 若其它特征不为empty
             emb = tf.concat([att_emb, item_embed, other_feat], axis=-1)
         else:
             emb = tf.concat([att_emb, item_embed], axis=-1)

@@ -351,6 +351,7 @@ class AFMLayer(Layer):
         return output
 
 
+# DIN
 class Attention(Layer):
     def __init__(self, hidden_units, activation='prelu'):
         """
@@ -405,6 +406,7 @@ class Attention(Layer):
         return output
 
 
+# DIN
 class Dice(Layer):
     def __init__(self, axis=-1, epsilon=1e-9):
         super(Dice, self).__init__()
@@ -412,10 +414,9 @@ class Dice(Layer):
         self.epsilon = epsilon
 
     def build(self, input_shape):
-        self.bn = BatchNormalization(
-            axis=self.axis, epsilon=self.epsilon, center=False, scale=False)
-        self.alphas = self.add_weight(shape=(input_shape[-1],), initializer=Zeros(), dtype=tf.float32,
-                                      name='dice_alpha')
+        self.bn = BatchNormalization(axis=self.axis, epsilon=self.epsilon, center=False, scale=False)
+        self.alphas = self.add_weight(shape=(input_shape[-1],), initializer=Zeros(),
+                                      dtype=tf.float32, name='dice_alpha')
         self.uses_learning_phase = True
 
     def call(self, inputs, training=None, *args, **kwargs):
