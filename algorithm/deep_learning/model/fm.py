@@ -7,7 +7,7 @@ from utils.dataset import create_criteo_dataset
 from utils.compile_fit import compile_fit
 
 import tensorflow as tf
-from keras import Model
+from tensorflow.python.keras import Model
 from sklearn.metrics import accuracy_score
 
 
@@ -17,6 +17,7 @@ class FM(Model):
         self.fm = FMLayer(k, w_reg, v_reg)
 
     def call(self, inputs, training=None, mask=None):
+        print(inputs.shape)
         output = self.fm(inputs)
         output = tf.nn.sigmoid(output)
         return output
