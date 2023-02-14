@@ -15,8 +15,8 @@ from utils.dataset import create_movies_dataset
 from utils.compile_fit import compile_fit
 
 import tensorflow as tf
-from keras.models import Model
-from keras.layers import Embedding, Dense, BatchNormalization, PReLU, Dropout
+from tensorflow.python.keras.models import Model
+from tensorflow.python.keras.layers import Embedding, Dense, BatchNormalization, PReLU, Dropout
 from sklearn.metrics import accuracy_score
 
 
@@ -69,9 +69,9 @@ class DIN(Model):
         candidate_item: (None, k); k=embed_dim
         """
         # other inputs >> concat other features embedding
-        dense_inputs = tf.transpose([inputs[feat['feat']] for feat in self.dense_feature_columns])
-        sparse_inputs = tf.transpose([inputs[feat['feat']] for feat in self.sparse_feature_columns
-                                      if feat['feat'] not in self.behavior_feature_list])
+        dense_inputs = tf.concat([inputs[feat['feat']] for feat in self.dense_feature_columns], axis=-1)
+        sparse_inputs = tf.concat([inputs[feat['feat']] for feat in self.sparse_feature_columns
+                                   if feat['feat'] not in self.behavior_feature_list], axis=-1)
         other_feat = tf.concat([layer(sparse_inputs[:, i]) for i, layer in enumerate(self.embed_sparse_layers)],
                                axis=-1)
         other_feat = tf.concat([other_feat, dense_inputs], axis=-1)  # dense & sparse inputs embedding concat
@@ -79,7 +79,8 @@ class DIN(Model):
         # behaviors input >> attention embedding
         history_seq = tf.transpose([inputs[feat['feat']] for feat in self.sparse_feature_columns
                                     if feat['feat'] in self.behavior_feature_list], [1, 2, 0])
-        candidate_item = tf.transpose([inputs['movie_id']])
+        candidate_item = tf.stack(inputs['movie_id'])
+
         seq_embed = tf.concat([layer(history_seq[:, :, i])
                                for i, layer in enumerate(self.embed_seq_layers)], axis=-1)  # (None, n, k)
         item_embed = tf.concat([layer(candidate_item[:, i])
@@ -112,6 +113,12 @@ if __name__ == '__main__':
     model = DIN(feature_dict, behavior_features)
     model = compile_fit(model, X, y_train)
 
-    pre = model(X_test)
+    tmp = {}
+    for feat in features:
+        if feat in behavior_features:
+            tmp[feat] = list(X_test[feat].values)
+        else:
+            tmp[feat] = [[i] for i in X_test[feat]]
+    pre = model(tmp)
     pre = [1 if x > 0.5 else 0 for x in pre]
     print('AUC: ', accuracy_score(y_test, pre))
