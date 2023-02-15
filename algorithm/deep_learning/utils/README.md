@@ -1,5 +1,9 @@
 # utils
 
+## movielens data
+[movielens数据获取](http://files.grouplens.org/datasets/movielens/)
+下载ml-1m.zip至data目录中进行解压；
+
 ## criteo_dataset
 criteo数据的获取和处理
 
