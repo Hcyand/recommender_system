@@ -2,14 +2,6 @@
 # @Time : 2022/8/8 18:05
 # @Author : Hcyand
 # @FileName: din.py
-"""
-当前属于DIN算法的基本实现，目前只讨论其需要的基本参数以及算法的简单实现；
-学习路径推荐：
-1. 算法原理文章阅读，了解其不同于其它算法的核心在于Activation Unit和PReLU/Dice；
-2. 代码块需要额外注意用户行为序列特征(behaviors features)的获取(create_movies_dataset)、处理等方式;
-3. Activation unit和 PReLU/Dice的代码实现分别为Attention、Dice func；
-4. 最后按照文章中图示的算法结构复现出来即可；
-"""
 from layer.interaction import Attention, Dice
 from utils.dataset import create_movies_dataset
 from utils.compile_fit import compile_fit
@@ -68,7 +60,7 @@ class DIN(Model):
         history_seq: (None, n, k); n=len(seq); k=embed_dim
         candidate_item: (None, k); k=embed_dim
         """
-        # other inputs >> concat other features embedding
+        # inputs >> concat other features embedding
         dense_inputs = tf.concat([inputs[feat['feat']] for feat in self.dense_feature_columns], axis=-1)
         sparse_inputs = tf.concat([inputs[feat['feat']] for feat in self.sparse_feature_columns
                                    if feat['feat'] not in self.behavior_feature_list], axis=-1)
