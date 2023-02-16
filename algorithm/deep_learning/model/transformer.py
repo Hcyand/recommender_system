@@ -7,90 +7,7 @@ import tensorflow as tf
 import tensorflow.python.keras.backend as K
 from tensorflow.python.keras.layers import Layer
 
-from layer.nlp import MultiHeadAttention
-
-
-class PositionEncoding(Layer):
-    """位置Embedding，通过固定公式计算"""
-
-    def __init__(self, model_dim, **kwargs):
-        self._model_dim = model_dim
-        super(PositionEncoding, self).__init__(**kwargs)
-
-    def call(self, inputs, **kwargs):
-        seq_length = inputs.shape[1]
-        position_encodings = np.zeros((seq_length, self._model_dim))
-        for pos in range(seq_length):
-            for i in range(self._model_dim):
-                position_encodings[pos, i] = pos / np.power(10000, (i - i % 2) / self._model_dim)
-        position_encodings[:, 0::2] = np.sin(position_encodings[:, 0::2])  # 2i
-        position_encodings[:, 1::2] = np.cos(position_encodings[:, 1::2])  # 2i+1
-        position_encodings = K.cast(position_encodings, 'float32')
-        return position_encodings
-
-
-class PositionWiseFeedForward(Layer):
-    """Feed Forward，由两层全连接组成，一层激活函数为relu，后一层不使用激活函数"""
-
-    def __init__(self, model_dim, inner_dim, trainable=True, **kwargs):
-        self._model_dim = model_dim
-        self._inner_dim = inner_dim
-        self._trainable = trainable
-        super(PositionWiseFeedForward, self).__init__(**kwargs)
-
-    def build(self, input_shape):
-        self.weights_inner = self.add_weight(
-            shape=(input_shape[-1], self._inner_dim),
-            initializer='glorot_uniform',
-            trainable=self._trainable,
-            name="weights_inner")
-        self.weights_out = self.add_weight(
-            shape=(self._inner_dim, self._model_dim),
-            initializer='glorot_uniform',
-            trainable=self._trainable,
-            name="weights_out")
-        self.bias_inner = self.add_weight(
-            shape=(self._inner_dim,),
-            initializer='uniform',
-            trainable=self._trainable,
-            name="bias_inner")
-        self.bias_out = self.add_weight(
-            shape=(self._model_dim,),
-            initializer='uniform',
-            trainable=self._trainable,
-            name="bias_out")
-        super(PositionWiseFeedForward, self).build(input_shape)
-
-    def call(self, inputs, **kwargs):
-        if K.dtype(inputs) != 'float32':
-            inputs = K.cast(inputs, 'float32')
-        inner_out = K.relu(K.dot(inputs, self.weights_inner) + self.bias_inner)
-        outputs = K.dot(inner_out, self.weights_out) + self.bias_out
-        return outputs
-
-
-class LayerNormalization(Layer):
-    # 归一化层
-    def __init__(self, epsilon=1e-8, **kwargs):
-        self._epsilon = epsilon
-        super(LayerNormalization, self).__init__(**kwargs)
-
-    def build(self, input_shape):
-        self.beta = self.add_weight(
-            shape=(input_shape[-1],),
-            initializer='zero',
-            name='beta')
-        self.gamma = self.add_weight(
-            shape=(input_shape[-1],),
-            initializer='one',
-            name='gamma')
-        super(LayerNormalization, self).build(input_shape)
-
-    def call(self, inputs, **kwargs):
-        mean, variance = tf.nn.moments(inputs, [-1], keepdims=True)
-        normalized = (inputs - mean) / ((variance + self._epsilon) ** 0.5)
-        outputs = self.gamma * normalized + self.beta
-        return outputs
+from layer.nlp import MultiHeadAttention, PositionEncoding, PositionWiseFeedForward, LayerNormalization
 
 
 class Transformer(Layer):
@@ -161,7 +78,8 @@ class Transformer(Layer):
 
         masks = K.equal(inputs, 0)
         # Embeddings
-        embeddings = K.gather(self.embeddings, inputs)
+        embeddings = K.gather(self.embeddings, inputs)  # 搜索给定下标向量
+        # 为了减少嵌入向量的维度对模型训练的影响，提高模型的训练效率和稳定性，通常需要对嵌入向量进行缩放；下述model_dim**0.5为缩放因子
         embeddings *= self._model_dim ** 0.5  # Scale
         # Position Encodings
         position_encodings = self.EncoderPositionEncoding(embeddings)
