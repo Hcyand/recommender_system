@@ -110,6 +110,7 @@ class AUGRUCell(GRUCell):
         )
 
     def call(self, inputs, states, att_score=None, training=None):
+        # 简化了很多，同时没有加bias，后续需要添加
         h_tm1 = states[0] if nest.is_nested(states) else states
 
         inputs_z = inputs

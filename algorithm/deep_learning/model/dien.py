@@ -18,8 +18,14 @@ from layer.utils import concat_func, reduce_mean, combined_dnn_input
 
 
 def auxiliary_loss(h_states, click_seq, noclick_seq, mask, stag=None):
+    """
+    辅助损失函数
+    """
+    # get_shape()获取的是一个TensorShape对象，还可以进行切片/转换形状等操作，且get_shape()是TensorFlow的内部实现，会更快点
+    # 主要和click_seq.shape操作进行对比，更加推荐下述操作
     hist_len, _ = click_seq.get_shape().as_list()[1:]
     """
+    每行对应的True的数量，用于mask操作
     tf.sequence_mask([1, 3, 2], 5)  # [[True, False, False, False, False],
                                     #  [True, True, True, False, False],
                                     #  [True, True, False, False, False]]
@@ -28,18 +34,17 @@ def auxiliary_loss(h_states, click_seq, noclick_seq, mask, stag=None):
     mask = mask[:, 0, :]
     mask = tf.cast(mask, tf.float32)
 
-    click_input_ = tf.concat([h_states, click_seq], -1)
-    noclick_input_ = tf.concat([h_states, noclick_seq], -1)
+    click_input_ = tf.concat([h_states, click_seq], axis=-1)
+    noclick_input_ = tf.concat([h_states, noclick_seq], axis=-1)
 
     auxiliary_nn = DNN([100, 50, 1], activation='sigmoid')
 
     click_prop_ = auxiliary_nn(click_input_, stag=stag)[:, :, 0]
     noclick_prop_ = auxiliary_nn(noclick_input_, stag=stag)[:, :, 0]
 
-    click_loss_ = -tf.reshape(tf.compat.v1.log(click_prop_),
-                              [-1, tf.shape(click_seq)[1]]) * mask
-    noclick_loss_ = - tf.reshape(tf.compat.v1.log(1.0 - noclick_prop_),
-                                 [-1, tf.shape(noclick_seq)[1]]) * mask
+    # tf.compat.v1.log == tf.math.log  2.x后tf.math提供所有的数学运算函数；
+    click_loss_ = -tf.reshape(tf.math.log(click_prop_), [-1, tf.shape(click_seq)[1]]) * mask
+    noclick_loss_ = -tf.reshape(tf.math.log(1.0 - noclick_prop_), [-1, tf.shape(noclick_seq)[1]]) * mask
 
     loss_ = reduce_mean(click_loss_ + noclick_loss_)
 
@@ -48,12 +53,16 @@ def auxiliary_loss(h_states, click_seq, noclick_seq, mask, stag=None):
 
 def interest_evolution(concat_behavior, deep_input_item, user_behavior_length, gru_type="AUGRU", use_neg=False,
                        neg_concat_behavior=None, att_hidden_size=(64, 16), att_activation='sigmoid',
-                       att_weight_normalization=False, ):
+                       att_weight_normalization=False):
+    """
+    兴趣演化函数
+    """
     aux_loss_1 = None
-    embedding_size = deep_input_item.shape[-1]
-    # GRU func to h(1), h(2) ... h(T-1), h(T)
-    rnn_outputs = GRU(embedding_size, return_sequences=True, name='gru1')(
-        concat_behavior)
+    embedding_size = deep_input_item.get_shape().as_list[-1]
+    # embedding_size = deep_input_item.shape[-1]
+
+    # GRU func: e(1), e(2) ... e(T-1), e(T) >> h(1), h(2) ... h(T-1), h(T)
+    rnn_outputs = GRU(embedding_size, return_sequences=True, name='gru1')(concat_behavior)
 
     if gru_type == "AUGRU" and use_neg:
         # get auxiliary loss
@@ -63,9 +72,9 @@ def interest_evolution(concat_behavior, deep_input_item, user_behavior_length, g
 
     # get attention scores
     scores = AttentionSequencePoolingLayer(att_hidden_units=att_hidden_size, att_activation=att_activation,
-                                           weight_normalization=att_weight_normalization, return_score=True)([
-        deep_input_item, rnn_outputs, user_behavior_length])
-    final_state = AUGRU(embedding_size, gru_type="AUGRU", return_sequences=False, name='gru2')(
+                                           weight_normalization=att_weight_normalization, return_score=True)(
+        [deep_input_item, rnn_outputs, user_behavior_length])
+    final_state = AUGRU(embedding_size, gru_type=gru_type, return_sequences=False, name='gru2')(
         rnn_outputs, att_score=Permute([2, 1])(scores))
     hist = tf.expand_dims(final_state, axis=1)
     return hist, aux_loss_1

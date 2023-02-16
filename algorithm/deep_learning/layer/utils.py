@@ -129,7 +129,7 @@ def reduce_mean(input_tensor,
                               axis=axis,
                               keep_dims=keep_dims,
                               name=name,
-                              reduction_indices=reduction_indices)
+                              reduction_indices=reduction_indices)  # tf 1.x
     except TypeError:
         return tf.reduce_mean(input_tensor,
                               axis=axis,

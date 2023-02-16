@@ -77,15 +77,15 @@ class LocalActivationUnit(Layer):
             raise ValueError('A `LocalActivationUnit` layer requires '
                              'inputs of a two inputs with shape (None,1,embedding_size) and (None,T,embedding_size)'
                              'Got different shapes: %s,%s' % (input_shape[0], input_shape[1]))
-        size = 4 * \
-               int(input_shape[0][-1]
-                   ) if len(self.hidden_units) == 0 else self.hidden_units[-1]
-        self.kernel = self.add_weight(shape=(size, 1),
-                                      initializer=glorot_normal(
-                                          seed=self.seed),
-                                      name="kernel")
+        size = 4 * int(input_shape[0][-1]) if len(self.hidden_units) == 0 else self.hidden_units[-1]
+        self.kernel = self.add_weight(
+            shape=(size, 1),
+            initializer=glorot_normal(seed=self.seed),
+            name="kernel")
         self.bias = self.add_weight(
-            shape=(1,), initializer=Zeros(), name="bias")
+            shape=(1,),
+            initializer=Zeros(),
+            name="bias")
         self.dnn = DNN(self.hidden_units, self.activation, self.l2_reg, self.dropout_rate, self.use_bn, seed=self.seed)
 
         super(LocalActivationUnit, self).build(
@@ -163,10 +163,8 @@ class DNN(Layer):
         input_size = input_shape[-1]
         hidden_units = [int(input_size)] + list(self.hidden_units)
         self.kernels = [self.add_weight(name='kernel' + str(i),
-                                        shape=(
-                                            hidden_units[i], hidden_units[i + 1]),
-                                        initializer=glorot_normal(
-                                            seed=self.seed),
+                                        shape=(hidden_units[i], hidden_units[i + 1]),
+                                        initializer=glorot_normal(seed=self.seed),
                                         regularizer=l2(self.l2_reg),
                                         trainable=True) for i in range(len(self.hidden_units))]
         self.bias = [self.add_weight(name='bias' + str(i),
@@ -191,8 +189,7 @@ class DNN(Layer):
         deep_input = inputs
 
         for i in range(len(self.hidden_units)):
-            fc = tf.nn.bias_add(tf.tensordot(
-                deep_input, self.kernels[i], axes=(-1, 0)), self.bias[i])
+            fc = tf.nn.bias_add(tf.tensordot(deep_input, self.kernels[i], axes=(-1, 0)), self.bias[i])
 
             if self.use_bn:
                 fc = self.bn_layers[i](fc, training=training)

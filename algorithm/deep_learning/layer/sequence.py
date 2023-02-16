@@ -200,14 +200,10 @@ class AttentionSequencePoolingLayer(Layer):
         - **weight_normalization**: bool.Whether normalize the attention score of local activation unit.
 
         - **supports_masking**:If True,the input need to support masking.
-
-      References
-        - [Zhou G, Zhu X, Song C, et al. Deep interest network for click-through rate prediction[C]//Proceedings of the 24th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining. ACM, 2018: 1059-1068.](https://arxiv.org/pdf/1706.06978.pdf)
     """
 
     def __init__(self, att_hidden_units=(80, 40), att_activation='sigmoid', weight_normalization=False,
-                 return_score=False,
-                 supports_masking=False, **kwargs):
+                 return_score=False, supports_masking=False, **kwargs):
 
         self.att_hidden_units = att_hidden_units
         self.att_activation = att_activation
@@ -218,6 +214,7 @@ class AttentionSequencePoolingLayer(Layer):
 
     def build(self, input_shape):
         if not self.supports_masking:
+            # 输入数据检查
             if not isinstance(input_shape, list) or len(input_shape) != 3:
                 raise ValueError('A `AttentionSequencePoolingLayer` layer should be called '
                                  'on a list of 3 inputs')
@@ -229,14 +226,13 @@ class AttentionSequencePoolingLayer(Layer):
 
             if input_shape[0][-1] != input_shape[1][-1] or input_shape[0][1] != 1 or input_shape[2][1] != 1:
                 raise ValueError('A `AttentionSequencePoolingLayer` layer requires '
-                                 'inputs of a 3 tensor with shape (None,1,embedding_size),(None,T,embedding_size) and (None,1)'
-                                 'Got different shapes: %s' % (input_shape))
+                                 'inputs 3 tensor shape (None,1,embedding_size),(None,T,embedding_size) and (None,1)'
+                                 'Got different shapes: %s' % input_shape)
         else:
             pass
         self.local_att = LocalActivationUnit(
             self.att_hidden_units, self.att_activation, l2_reg=0, dropout_rate=0, use_bn=False, seed=1024, )
-        super(AttentionSequencePoolingLayer, self).build(
-            input_shape)  # Be sure to call this somewhere!
+        super(AttentionSequencePoolingLayer, self).build(input_shape)  # Be sure to call this somewhere!
 
     def call(self, inputs, mask=None, training=None, **kwargs):
 
@@ -248,9 +244,8 @@ class AttentionSequencePoolingLayer(Layer):
             key_masks = tf.expand_dims(mask[-1], axis=1)
 
         else:
-
             queries, keys, keys_length = inputs
-            hist_len = keys.get_shape()[1]
+            hist_len = keys.get_shape().as_list[1]
             key_masks = tf.sequence_mask(keys_length, hist_len)
 
         attention_score = self.local_att([queries, keys], training=training)
@@ -311,9 +306,7 @@ class AUGRU(RNN):
             units,
             activation=activation,
             recurrent_activation=recurrent_activation)
-        super(AUGRU, self).__init__(
-            cell,
-            **kwargs)
+        super(AUGRU, self).__init__(cell, **kwargs)
 
     def call(self,
              inputs,
@@ -322,27 +315,45 @@ class AUGRU(RNN):
              training=None,
              initial_state=None,
              constants=None):
-        # func convert_inputs_if_ragged: Converts any ragged tensors to dense
+        # func convert_inputs_if_ragged: 将输入数据转化为tf.RaggedTensor(不规则张量结构)
         inputs, row_lengths = backend.convert_inputs_if_ragged(inputs)
-        is_ragged_input = (row_lengths is not None)
+        is_ragged_input = (row_lengths is not None)  # 判断是否是变长序列
+        # 将变长序列转化为定长序列；对输入数据进行层归一化处理等预处理
         inputs, initial_state, constants = self._process_inputs(inputs, initial_state, constants)
 
+        """
+        当在 LSTM 网络中使用 dropout 操作时，每个元素都有一定的概率被随机置为 0。这样做可以提高模型的鲁棒性和泛化能力，
+        但也可能导致模型在训练时表现不稳定。为了解决这个问题，通常需要在每个时间步骤都使用相同的 dropout 掩码，而不是使用全局掩码。
+        self._maybe_reset_cell_dropout_mask 方法的作用是检查当前的输入数据形状是否与之前的输入数据形状相同。如果形状相同，
+        则说明 dropout 掩码已经被重置过了，不需要再次重置；否则就需要重新生成 dropout 掩码以确保每个时间步骤都使用相同的掩码。
+        这样做可以提高模型的训练稳定性，避免出现训练时的不稳定现象
+        """
         self._maybe_reset_cell_dropout_mask(self.cell)
         if isinstance(self.cell, StackedRNNCells):
             for cell in self.cell.cells:
                 self._maybe_reset_cell_dropout_mask(cell)
 
         if mask is not None:
+            # nest.flatten将嵌套结构展平为一维列表
             mask = nest.flatten(mask)[0]
 
-        if nest.is_nested(inputs):
+        if nest.is_nested(inputs):  # 判断数据是否是嵌套的结构
+            # int_shape用于获取张量的静态形状
             input_shape = backend.int_shape(nest.flatten(inputs)[0])
         else:
             input_shape = backend.int_shape(inputs)
-        timesteps = input_shape[0] if self.time_major else input_shape[1]
+        timesteps = input_shape[0] if self.time_major else input_shape[1]  # 确定输入数据的时间步数
 
         # TF RNN cells expect single tensor as state instead of list wrapped tensor.
+        # 判断当前使用的RNN模型是否是TF自带的RNN模型（因为不同的RNN可能需要不同的处理方式）
         is_tf_rnn_cell = getattr(self.cell, '_is_tf_rnn_cell', None) is not None
+        # 获取当前RNN模型的调用方法，callable用来检查对象是否可以调用
+        """
+        作用：获取当前RNN模型的调用方法
+        callable用来检查对象是否可以调用
+        由于在 Tensorflow 2 中，RNN 模型的调用方法有所不同，如果使用 tf.keras.layers.RNN 等高级 RNN 层，则需要使用 __call__ 方法调用，
+        而如果使用的是 tf.keras.layers.LSTMCell 等底层 RNN 单元，则需要使用 call 方法调用
+        """
         cell_call_fn = self.cell.__call__ if callable(self.cell) else self.cell.call
         if constants:
             def step(inputs, states, att_score):
