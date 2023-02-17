@@ -425,6 +425,7 @@ class Dice(Layer):
         return self.alphas * (1.0 - x_p) * inputs + x_p * inputs
 
 
+# MMOE
 class mmoe_layer(Layer):
     def __init__(self, hidden_units, num_experts, num_tasks, use_expert_bias=True, use_gate_bias=True, **kwargs):
         super(mmoe_layer, self).__init__(**kwargs)
@@ -451,7 +452,7 @@ class mmoe_layer(Layer):
                 name='expert_bias',
                 shape=(self.hidden_units, self.num_experts),
                 trainable=True,
-                initializer=tf.random_normal_initializer,
+                initializer=tf.random_normal_initializer(),
                 regularizer=l2(1e-4)
             )
 
@@ -476,21 +477,16 @@ class mmoe_layer(Layer):
             ) for i in range(self.num_tasks)]
 
     def call(self, inputs, *args, **kwargs):
-        # inputs x expert = [None, input_shape[-1]] x [input_shape[-1], hidden_units, num_experts]
-        # get [None, hidden_units, num_experts]
+        # inputs: [None, input_shape[-1]]
         expert_output = []
         for i in range(self.num_experts):
             expert_out = tf.matmul(inputs, self.expert_matrix[:, :, i])
             expert_output.append(expert_out)
-        expert_output = tf.transpose(
-            tf.convert_to_tensor(expert_output), [1, 2, 0])  # [None, hidden_units, num_experts]
-
-        # 加偏执，形状保持不变
+        expert_output = tf.transpose(tf.convert_to_tensor(expert_output), [1, 2, 0])  # [None,hidden_units,num_experts]
         if self.use_expert_bias:
             expert_output += self.expert_bias
         expert_output = tf.nn.relu(expert_output)
 
-        # inputs x gate = [None, input_shape[-1]] x [input_shape[-1], num_experts]
         # num_tasks个gate得到输出列表 num_tasks x [None, num_experts]
         gate_outputs = []
         for i, gate in enumerate(self.gate_matrix):
@@ -498,7 +494,6 @@ class mmoe_layer(Layer):
             if self.use_gate_bias:
                 gate_out += self.gate_bias[i]
             gate_out = tf.nn.softmax(gate_out)
-
             gate_outputs.append(gate_out)  # list: num_tasks x [None, num_experts]
 
         # gate与expert的输出相乘
