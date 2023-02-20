@@ -80,7 +80,7 @@ def varlen_embedding_lookup(embedding_dict, sequence_input_dict, varlen_sparse_f
         else:
             lookup_idx = sequence_input_dict[feature_name]
         varlen_embedding_vec_dict[feature_name] = embedding_dict[embedding_name](lookup_idx)
-        return varlen_embedding_vec_dict
+    return varlen_embedding_vec_dict
 
 
 def get_dense_input(features, feature_columns):
