@@ -201,3 +201,16 @@ def calculate_sim(arr, t):
             elif t == 'pea':
                 dp[i][j] = pearson(arr[i], arr[j])
     return dp
+
+
+def inbatch_softmax_cross_entropy_with_logits(logits, item_count, item_idx):
+    # tf.squeeze删除尺度为1的维度，axis可以确定只删除具体位置
+    Q = tf.gather(tf.constant(item_count / np.sum(item_count), 'float32'), tf.squeeze(item_idx, axis=1))
+    logQ = tf.reshape(tf.math.log(Q), (1, -1))
+    logits -= logQ  # subtract_log_q
+    # 创建对角矩阵
+    labels = tf.linalg.diag(tf.ones_like(logits[0]))
+    # softmax_cross_entropy_with_logits：计算softmax分类问题的交叉熵损失
+    loss = tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits)
+    return loss
+

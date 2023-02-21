@@ -5,12 +5,18 @@
 from collections import defaultdict
 from itertools import chain
 
-from utils.feature_column import SparseFeat, VarLenSparseFeat, DenseFeat
+from .feature_column import SparseFeat, VarLenSparseFeat, DenseFeat
 from tensorflow.python.keras.layers import Embedding, Lambda
 from tensorflow.python.keras.regularizers import l2
 
 from layer.utils import Hash
 from layer.sequence import WeightedSequenceLayer, SequencePoolingLayer
+from utils.tools import mergeDict
+from itertools import chain
+from tqdm import tqdm
+import random
+import numpy as np
+from tensorflow.python.keras.preprocessing.sequence import pad_sequences
 
 
 def create_embedding_dict(sparse_feature_columns, varlen_sparse_feature_columns, seed, l2_reg,
@@ -121,3 +127,85 @@ def get_varlen_pooling_list(embedding_dict, features, varlen_sparse_feature_colu
     if to_list:
         return chain.from_iterable(pooling_vec_list.values())
     return pooling_vec_list
+
+
+def input_from_feature_columns(features, feature_columns, l2_reg, seed, prefix='', seq_mask_zero=True,
+                               support_dense=True, support_group=False, embedding_matrix_dict=None):
+    sparse_feature_columns = list(
+        filter(lambda x: isinstance(x, SparseFeat), feature_columns)) if feature_columns else []
+    varlen_sparse_feature_columns = list(
+        filter(lambda x: isinstance(x, VarLenSparseFeat), feature_columns)) if feature_columns else []
+    if embedding_matrix_dict is None:
+        embedding_matrix_dict = create_embedding_matrix(feature_columns, l2_reg, seed, prefix=prefix,
+                                                        seq_mask_zero=seq_mask_zero)
+
+    group_sparse_embedding_dict = embedding_lookup(embedding_matrix_dict, features, sparse_feature_columns)
+    dense_value_list = get_dense_input(features, feature_columns)
+    if not support_dense and len(dense_value_list) > 0:
+        raise ValueError("DenseFeat is not supported in dnn_feature_columns")
+
+    sequence_embed_dict = varlen_embedding_lookup(embedding_matrix_dict, features, varlen_sparse_feature_columns)
+    group_varlen_sparse_embedding_dict = get_varlen_pooling_list(sequence_embed_dict, features,
+                                                                 varlen_sparse_feature_columns)
+    group_embedding_dict = mergeDict(group_sparse_embedding_dict, group_varlen_sparse_embedding_dict)
+    if not support_group:
+        group_embedding_dict = list(chain.from_iterable(group_embedding_dict.values()))
+    return group_embedding_dict, dense_value_list
+
+
+def gen_data_set(data, seq_max_len=50, negsample=0):
+    data.sort_values("timestamp", inplace=True)
+    item_ids = data['movie_id'].unique()
+    item_id_genres_map = dict(zip(data['movie_id'].values, data['genres'].values))
+    train_set = []
+    test_set = []
+    for reviewerID, hist in tqdm(data.groupby('user_id')):
+        pos_list = hist['movie_id'].tolist()
+        genres_list = hist['genres'].tolist()
+        rating_list = hist['rating'].tolist()
+
+        if negsample > 0:
+            candidate_set = list(set(item_ids) - set(pos_list))
+            neg_list = np.random.choice(candidate_set, size=len(pos_list) * negsample, replace=True)
+        for i in range(1, len(pos_list)):
+            hist = pos_list[:i]
+            genres_hist = genres_list[:i]
+            seq_len = min(i, seq_max_len)
+            if i != len(pos_list) - 1:
+                train_set.append((reviewerID, pos_list[i], 1, hist[::-1][:seq_len], seq_len,
+                                  genres_hist[::-1][:seq_len], genres_list[i], rating_list[i]))
+                for negi in range(negsample):
+                    train_set.append((reviewerID, neg_list[i * negsample + negi], 0, hist[::-1][:seq_len], seq_len,
+                                      genres_hist[::-1][:seq_len], item_id_genres_map[neg_list[i * negsample + negi]]))
+            else:
+                test_set.append((reviewerID, pos_list[i], 1, hist[::-1][:seq_len], seq_len, genres_hist[::-1][:seq_len],
+                                 genres_list[i],
+                                 rating_list[i]))
+
+    random.shuffle(train_set)
+    random.shuffle(test_set)
+
+    print(len(train_set[0]), len(test_set[0]))
+
+    return train_set, test_set
+
+
+def gen_model_input(train_set, user_profile, seq_max_len):
+    train_uid = np.array([line[0] for line in train_set])
+    train_iid = np.array([line[1] for line in train_set])
+    train_label = np.array([line[2] for line in train_set])
+    train_seq = [line[3] for line in train_set]
+    train_hist_len = np.array([line[4] for line in train_set])
+    train_seq_genres = np.array([line[5] for line in train_set])
+    train_genres = np.array([line[6] for line in train_set])
+    train_seq_pad = pad_sequences(train_seq, maxlen=seq_max_len, padding='post', truncating='post', value=0)
+    train_seq_genres_pad = pad_sequences(train_seq_genres, maxlen=seq_max_len, padding='post', truncating='post',
+                                         value=0)
+    train_model_inputs = {"user_id": train_uid, "movie_id": train_iid, "hist_movie_id": train_seq_pad,
+                          "hist_genres": train_seq_genres_pad,
+                          "hist_len": train_hist_len, "genres": train_genres}
+
+    for key in ["gender", "age", "occupation", "zip"]:
+        train_model_inputs[key] = user_profile.loc[train_model_inputs['user_id']][key].values
+
+    return train_model_inputs, train_label

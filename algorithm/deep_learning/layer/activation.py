@@ -13,6 +13,7 @@ from tensorflow.python.framework import dtypes as dtypes_module
 from tensorflow.python.framework import ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.keras.backend import zeros_like, expand_dims
+from .utils import inbatch_softmax_cross_entropy_with_logits
 
 try:
     from tensorflow.python.ops.init_ops import Zeros
@@ -261,3 +262,24 @@ def rnn_augru(step_function,
         outputs = nest.map_structure(swap_batch_timestep, outputs)
 
     return last_output, outputs, new_states
+
+
+class InBatchSoftmaxLayer(Layer):
+    def __init__(self, sampler_config, temperature=1.0, **kwargs):
+        self.sampler_config = sampler_config
+        self.temperature = temperature
+        self.item_count = self.sampler_config['item_count']
+
+        super(InBatchSoftmaxLayer, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        super(InBatchSoftmaxLayer, self).build(input_shape)
+
+    def call(self, inputs_with_item_idx, training=None, **kwargs):
+        user_vec, item_vec, item_idx = inputs_with_item_idx
+        if item_idx.dtype != tf.int64:
+            item_idx = tf.cast(item_idx, tf.int64)
+        user_vec /= self.temperature
+        logits = tf.matmul(user_vec, item_vec, transpose_b=True)
+        loss = inbatch_softmax_cross_entropy_with_logits(logits, self.item_count, item_idx)
+        return tf.expand_dims(loss, axis=1)
